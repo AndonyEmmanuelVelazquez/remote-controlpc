@@ -138,6 +138,47 @@ After **Always allow**, future sessions are hands-free: open PWA → Connect →
 
 ---
 
+## Packaging the agent as a desktop app (optional)
+
+`npm start` runs the agent from source. To get a double-clickable app or an installer,
+**bake your signaling URL in first** (so the app doesn't need an env var at runtime):
+
+```powershell
+cd pc-agent
+$env:SIGNALING_URL="wss://remote-control-signaling.<your-subdomain>.workers.dev"
+```
+
+### Portable app (no admin needed)
+
+```powershell
+npm run pack
+```
+
+Output: `pc-agent/release/RemoteControlPCAgent-win32-x64/`. Run it with
+**`RemoteControlPCAgent.exe`**, or double-click **`Start Remote Control.cmd`** (a launcher
+that clears `ELECTRON_RUN_AS_NODE`, which on some machines would otherwise hide the
+window). Zip the folder to share it. This is not a "Setup.exe" — it's a self-contained
+folder.
+
+### Windows installer / Setup.exe (NSIS)
+
+```powershell
+npm run dist
+```
+
+Output: `pc-agent/release/*.exe` (an installer with Start-menu entry, etc).
+
+> **Privilege note:** electron-builder extracts a `winCodeSign` cache that contains macOS
+> symlinks. Creating symlinks on Windows requires **Developer Mode** (Settings → Privacy &
+> security → For developers → Developer Mode → On) **or** running the terminal **as
+> Administrator**. Without one of those, `npm run dist` fails with
+> *"Cannot create symbolic link: A required privilege is not held by the client."* Enable
+> Developer Mode once, then re-run.
+
+> The build is **unsigned**, so Windows SmartScreen will warn on first run ("More info →
+> Run anyway"). Code signing needs a certificate (~$100–400/yr) and is optional for
+> personal use.
+
 ## Quick local-only test (no deploy at all)
 
 Validates the whole stack on one machine.

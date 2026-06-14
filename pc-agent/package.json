@@ -8,12 +8,14 @@
     "build": "node build.mjs",
     "typecheck": "tsc --noEmit",
     "start": "npm run build && node scripts/start.mjs",
+    "pack": "npm run build && electron-packager . RemoteControlPCAgent --platform=win32 --arch=x64 --out=release --overwrite --ignore=^/release --ignore=^/src",
     "dist": "npm run build && electron-builder --win"
   },
   "dependencies": {
     "@nut-tree-fork/nut-js": "^4.2.0"
   },
   "devDependencies": {
+    "@electron/packager": "^18.3.0",
     "@types/node": "^22.0.0",
     "electron": "^32.0.0",
     "electron-builder": "^25.0.0",
@@ -24,8 +26,15 @@
     "appId": "com.remotecontrol.pcagent",
     "productName": "Remote Control PC Agent",
     "files": ["dist/**/*", "package.json"],
+    "extraMetadata": { "main": "dist/main.js" },
+    "directories": { "output": "release" },
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
     }
   }
 }

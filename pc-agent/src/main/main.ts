@@ -10,9 +10,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dispatch, invalidateScreenSize } from "./input";
 import type { InputEvent } from "../../../shared/types";
 
-// Signaling endpoint. Override for production with SIGNALING_URL env var, e.g.
-//   set SIGNALING_URL=wss://remote-control-signaling.<sub>.workers.dev
-const SIGNALING_URL = process.env.SIGNALING_URL ?? "ws://127.0.0.1:8787";
+// Signaling endpoint. Baked at build time from SIGNALING_URL (see build.mjs); a runtime
+// SIGNALING_URL env var still overrides it. Lets a packaged app ship a working default.
+declare const __SIGNALING_DEFAULT__: string;
+const SIGNALING_URL = process.env.SIGNALING_URL ?? __SIGNALING_DEFAULT__;
 
 // Input is only actuated while a controller is authorized (renderer arms it after
 // the user clicks "Allow"). Defense in depth against stray IPC.

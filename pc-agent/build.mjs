@@ -12,6 +12,11 @@ await build({
   format: "cjs",
   // Native + electron stay external; bundling them would break native bindings.
   external: ["electron", "@nut-tree-fork/nut-js"],
+  // Bake a default signaling URL into packaged builds (SIGNALING_URL env at build time).
+  // At runtime, a SIGNALING_URL env var still overrides this.
+  define: {
+    __SIGNALING_DEFAULT__: JSON.stringify(process.env.SIGNALING_URL || "ws://127.0.0.1:8787"),
+  },
 });
 
 await build({

@@ -6,7 +6,14 @@ this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Nothing yet.
+### Added
+- **Packaging**: `npm run pack` (portable app via `@electron/packager`) and `npm run dist`
+  (NSIS installer via electron-builder). The portable folder ships a
+  `Start Remote Control.cmd` launcher.
+- Signaling URL is **baked at build time** from `SIGNALING_URL` (a runtime env var still
+  overrides), so a packaged app works on double-click without configuration.
+- Docs: build/installer instructions in [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md),
+  including the Windows Developer-Mode requirement for the NSIS build.
 
 ## [0.3.0] — 2026-06-14
 
