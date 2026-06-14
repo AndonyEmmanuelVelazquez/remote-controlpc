@@ -81,8 +81,8 @@ VITE_SIGNALING_URL="wss://remote-control-signaling.<your-sub>.workers.dev" npm r
 npx wrangler pages deploy dist --project-name pc-remote
 ```
 
-Open the resulting `*.pages.dev` URL in **Android Chrome** → "Add to Home screen" to
-install as a fullscreen app.
+Open the resulting `*.pages.dev` URL in **Android Chrome** → tap **⬇ Install app** (or
+menu → "Install app" / "Add to Home screen") to install it standalone.
 
 > On Windows PowerShell, set the env var first:
 > `$env:VITE_SIGNALING_URL="wss://…workers.dev"; npm run build`
@@ -99,6 +99,10 @@ npm start
 ```
 
 The agent window shows a **6-digit pairing code**.
+
+> Prefer a double-clickable app or a Setup.exe instead of `npm start`? See
+> [packaging](docs/GETTING_STARTED.md#packaging-the-agent-as-a-desktop-app-optional)
+> (`npm run pack` / `npm run dist`).
 
 ### 4. Connect
 
