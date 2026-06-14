@@ -7,6 +7,12 @@ this project aims to follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Per-user signaling**: the PC agent now has a **first-run setup screen** to enter your
+  own signaling URL (persisted to `config.json`; changeable via "⚙ Change signaling
+  server"). Resolution order: `SIGNALING_URL` env → saved config → baked default.
+  Distributable builds ship without a baked URL so each user points at their own
+  Cloudflare deployment, avoiding a shared pairing-code space. See
+  [SECURITY.md](SECURITY.md#multi-user).
 - **Packaging**: `npm run pack` (portable app via `@electron/packager`) and `npm run dist`
   (NSIS installer via electron-builder). The portable folder ships a
   `Start Remote Control.cmd` launcher.

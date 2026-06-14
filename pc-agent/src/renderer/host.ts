@@ -6,7 +6,8 @@ import type { InputEvent, SignalMessage } from "../../../shared/types";
 declare global {
   interface Window {
     agent: {
-      getConfig(): Promise<{ signalingUrl: string; code: string }>;
+      getConfig(): Promise<{ signalingUrl: string; code: string; configured: boolean }>;
+      setSignalingUrl(url: string): Promise<boolean>;
       isTrusted(deviceId: string): Promise<boolean>;
       trustDevice(deviceId: string, name: string): Promise<boolean>;
       forgetDevices(): Promise<boolean>;
@@ -18,11 +19,14 @@ declare global {
 
 const $ = (id: string) => document.getElementById(id)!;
 const codeEl = $("code");
+const codeHintEl = $("code-hint");
 const statusEl = $("status");
 const dotEl = $("dot");
 const promptEl = $("prompt");
 const peerNameEl = $("peer-name");
 const previewEl = $("preview") as HTMLVideoElement;
+const setupEl = $("setup");
+const sigInputEl = $("sig-input") as HTMLInputElement;
 
 function setStatus(text: string, state: "" | "wait" | "live" = "") {
   statusEl.textContent = text;
@@ -35,19 +39,57 @@ let signaling: SignalingClient;
 let pendingDevice: { id: string; name: string } | null = null;
 let helloTimer: number | undefined;
 
+let currentUrl = "";
+
 async function main() {
   const cfg = await window.agent.getConfig();
   code = cfg.code;
+  currentUrl = cfg.signalingUrl;
   codeEl.textContent = `${code.slice(0, 3)}-${code.slice(3)}`;
 
-  signaling = new SignalingClient(cfg.signalingUrl, code, "host", {
+  if (cfg.configured) startSignaling(currentUrl);
+  else showSetup(currentUrl);
+}
+
+function startSignaling(url: string) {
+  hideSetup();
+  currentUrl = url;
+  signaling = new SignalingClient(url, code, "host", {
     onOpen: () => setStatus("Waiting for controller…", "wait"),
     onClose: () => setStatus("Signaling disconnected", ""),
-    onError: () => setStatus("Signaling error — check SIGNALING_URL", ""),
+    onError: () => setStatus("Signaling error — check your server URL", ""),
     onMessage: handleSignal,
   });
   signaling.connect();
 }
+
+function showSetup(prefill: string) {
+  setupEl.classList.add("show");
+  codeEl.style.display = "none";
+  codeHintEl.style.display = "none";
+  sigInputEl.value = prefill && prefill !== "ws://127.0.0.1:8787" ? prefill : "";
+  setStatus("Configure your signaling server to begin", "");
+  sigInputEl.focus();
+}
+function hideSetup() {
+  setupEl.classList.remove("show");
+  codeEl.style.display = "";
+  codeHintEl.style.display = "";
+}
+
+$("sig-save").addEventListener("click", async () => {
+  const raw = sigInputEl.value.trim();
+  if (!raw) return setStatus("Enter your signaling server URL", "");
+  const url = raw.replace(/\/+$/, "").replace(/^http/, "ws"); // accept http(s)/ws(s)
+  await window.agent.setSignalingUrl(url);
+  location.reload(); // re-init cleanly with the saved URL
+});
+
+$("settings-btn").addEventListener("click", () => {
+  if (pc) return; // don't change servers mid-session
+  signaling?.close();
+  showSetup(currentUrl);
+});
 
 function handleSignal(msg: SignalMessage) {
   switch (msg.type) {

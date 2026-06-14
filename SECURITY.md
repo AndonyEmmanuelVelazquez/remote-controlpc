@@ -84,6 +84,23 @@ anyone on the network path can read them.
 
 ---
 
+## Multi-user
+
+**Each person should run their own signaling server.** The pairing room is keyed by the
+6-digit code on a single Worker, so everyone who shares one signaling server also shares
+that 6-digit code space. With persistent codes, two strangers can collide on the same
+code — one person's phone could reach another person's PC's room.
+
+> Control is still gated (an unknown device hits the Allow prompt; "Always allow" trusts
+> by device ID, not by code), so a collision cannot silently take over a PC — but it is a
+> real privacy/UX problem and it spends the server owner's free-tier quota.
+
+Therefore the PC agent asks for **your own** signaling URL on first run, and the phone
+controller has a **"Signaling server"** field. Distributable builds are shipped **without a
+baked URL** so each user points at their own free Cloudflare deployment. Don't hand your
+signaling URL (or a build that bakes it) to other people if you don't want to be their
+shared host.
+
 ## Is it safe to publish this repo / can others use it?
 
 Yes. The repository contains **no credentials**: no Cloudflare API token, no account ID,

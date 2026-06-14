@@ -108,17 +108,23 @@ Open it from a browser; type the signaling URL into the app's "Signaling server"
 ```powershell
 cd ../pc-agent
 npm install
-$env:SIGNALING_URL="wss://remote-control-signaling.<your-subdomain>.workers.dev"
 npm start
 ```
 
-bash form: `SIGNALING_URL="wss://…workers.dev" npm start`
+On **first run** the agent shows a **setup screen** — paste *your own* signaling URL
+(`wss://…workers.dev` from step 1) and click **Save & start**. It's stored in the agent's
+config, so you only do this once. (You can change it later via **⚙ Change signaling
+server**.)
 
-A window opens showing a **6-digit pairing code**. Leave it running.
+> You can skip the setup screen by baking the URL at build time
+> (`$env:SIGNALING_URL="wss://…"; npm start`) or via the `SIGNALING_URL` env var — useful
+> for your own machine. **For sharing the app with other people, leave it un-baked** so
+> each person enters their own server (see [SECURITY.md](../SECURITY.md#multi-user)).
 
-> The agent persists its pairing code and trusted devices under its userData folder
-> (`%APPDATA%\Remote Control PC Agent\` on Windows), so the code stays the same across
-> restarts.
+After setup, a window shows a **6-digit pairing code**. Leave it running.
+
+> The agent persists its config, pairing code, and trusted devices under its userData
+> folder (`%APPDATA%\Remote Control PC Agent\` on Windows), so they survive restarts.
 
 ---
 

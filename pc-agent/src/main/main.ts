@@ -10,10 +10,28 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dispatch, invalidateScreenSize } from "./input";
 import type { InputEvent } from "../../../shared/types";
 
-// Signaling endpoint. Baked at build time from SIGNALING_URL (see build.mjs); a runtime
-// SIGNALING_URL env var still overrides it. Lets a packaged app ship a working default.
+// Signaling endpoint resolution order (first non-empty wins):
+//   1. SIGNALING_URL env var (runtime override)
+//   2. saved config.json (set by the user in the app's setup screen)
+//   3. __SIGNALING_DEFAULT__ baked at build time (see build.mjs)
+// Each user runs their OWN signaling server, so distributable builds bake no real URL and
+// prompt for one on first run. The owner's build can bake a URL for a one-click experience.
 declare const __SIGNALING_DEFAULT__: string;
-const SIGNALING_URL = process.env.SIGNALING_URL ?? __SIGNALING_DEFAULT__;
+const DEV_DEFAULT = "ws://127.0.0.1:8787";
+
+function loadConfig(): { signalingUrl?: string } {
+  return loadJson<{ signalingUrl?: string }>("config.json", {});
+}
+function resolveSignalingUrl(): string {
+  return process.env.SIGNALING_URL || loadConfig().signalingUrl || __SIGNALING_DEFAULT__;
+}
+// "Configured" = the user has a real, deliberate URL (env, saved config, or a non-dev
+// baked default). If not, the renderer shows the first-run setup screen.
+function isConfigured(): boolean {
+  if (process.env.SIGNALING_URL) return true;
+  if (loadConfig().signalingUrl) return true;
+  return !!__SIGNALING_DEFAULT__ && __SIGNALING_DEFAULT__ !== DEV_DEFAULT;
+}
 
 // Input is only actuated while a controller is authorized (renderer arms it after
 // the user clicks "Allow"). Defense in depth against stray IPC.
@@ -82,9 +100,17 @@ function createWindow(): void {
 // ---- IPC from renderer ----------------------------------------------------
 
 ipcMain.handle("get-config", () => ({
-  signalingUrl: SIGNALING_URL,
+  signalingUrl: resolveSignalingUrl(),
   code: getOrCreateCode(),
+  configured: isConfigured(),
 }));
+
+ipcMain.handle("set-signaling-url", (_e, url: string) => {
+  const cfg = loadConfig();
+  cfg.signalingUrl = url;
+  saveJson("config.json", cfg);
+  return true;
+});
 
 ipcMain.handle("is-trusted", (_e, deviceId: string) => !!trusted[deviceId]);
 
