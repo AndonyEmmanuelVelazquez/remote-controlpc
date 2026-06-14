@@ -1,12 +1,15 @@
 import { SignalingClient } from "../../../shared/signaling";
-import { ICE_SERVERS, generatePairingCode, normalizeCode } from "../../../shared/types";
+import { ICE_SERVERS } from "../../../shared/types";
 import type { InputEvent, SignalMessage } from "../../../shared/types";
 
 // preload-exposed bridge
 declare global {
   interface Window {
     agent: {
-      getConfig(): Promise<{ signalingUrl: string }>;
+      getConfig(): Promise<{ signalingUrl: string; code: string }>;
+      isTrusted(deviceId: string): Promise<boolean>;
+      trustDevice(deviceId: string, name: string): Promise<boolean>;
+      forgetDevices(): Promise<boolean>;
       setArmed(value: boolean): void;
       sendInput(ev: InputEvent): void;
     };
@@ -18,6 +21,7 @@ const codeEl = $("code");
 const statusEl = $("status");
 const dotEl = $("dot");
 const promptEl = $("prompt");
+const peerNameEl = $("peer-name");
 const previewEl = $("preview") as HTMLVideoElement;
 
 function setStatus(text: string, state: "" | "wait" | "live" = "") {
@@ -25,17 +29,18 @@ function setStatus(text: string, state: "" | "wait" | "live" = "") {
   dotEl.className = "dot" + (state ? " " + state : "");
 }
 
-const codeDisplay = generatePairingCode(); // "NNN-NNN"
-const code = normalizeCode(codeDisplay); // "NNNNNN"
-codeEl.textContent = codeDisplay;
-
+let code = "";
 let pc: RTCPeerConnection | null = null;
 let signaling: SignalingClient;
+let pendingDevice: { id: string; name: string } | null = null;
+let helloTimer: number | undefined;
 
 async function main() {
-  const { signalingUrl } = await window.agent.getConfig();
+  const cfg = await window.agent.getConfig();
+  code = cfg.code;
+  codeEl.textContent = `${code.slice(0, 3)}-${code.slice(3)}`;
 
-  signaling = new SignalingClient(signalingUrl, code, "host", {
+  signaling = new SignalingClient(cfg.signalingUrl, code, "host", {
     onOpen: () => setStatus("Waiting for controller…", "wait"),
     onClose: () => setStatus("Signaling disconnected", ""),
     onError: () => setStatus("Signaling error — check SIGNALING_URL", ""),
@@ -48,9 +53,17 @@ function handleSignal(msg: SignalMessage) {
   switch (msg.type) {
     case "peer-joined":
       if (msg.role === "controller") {
-        setStatus("Controller connecting — awaiting your approval", "wait");
-        promptEl.classList.add("show");
+        setStatus("Controller connecting…", "wait");
+        // Wait briefly for the device's hello; if none, fall back to a manual prompt.
+        clearTimeout(helloTimer);
+        helloTimer = window.setTimeout(() => {
+          if (!pc) promptFor(null, "Unknown device");
+        }, 2000);
       }
+      break;
+    case "hello":
+      clearTimeout(helloTimer);
+      void onHello(msg.deviceId, msg.name || "Phone");
       break;
     case "answer":
       pc?.setRemoteDescription({ type: "answer", sdp: msg.sdp });
@@ -67,8 +80,27 @@ function handleSignal(msg: SignalMessage) {
   }
 }
 
+async function onHello(deviceId: string, name: string) {
+  pendingDevice = { id: deviceId, name };
+  if (await window.agent.isTrusted(deviceId)) {
+    setStatus(`Trusted device (${name}) — connecting…`, "wait");
+    await startSession();
+  } else {
+    promptFor(deviceId, name);
+  }
+}
+
+function promptFor(deviceId: string | null, name: string) {
+  if (pc) return; // session already active
+  if (deviceId) pendingDevice = { id: deviceId, name };
+  peerNameEl.textContent = name;
+  promptEl.classList.add("show");
+  setStatus("Controller connecting — awaiting your approval", "wait");
+}
+
 $("deny").addEventListener("click", () => {
   promptEl.classList.remove("show");
+  pendingDevice = null;
   setStatus("Denied. Waiting for controller…", "wait");
 });
 
@@ -77,7 +109,15 @@ $("allow").addEventListener("click", async () => {
   await startSession();
 });
 
+$("always").addEventListener("click", async () => {
+  promptEl.classList.remove("show");
+  if (pendingDevice) await window.agent.trustDevice(pendingDevice.id, pendingDevice.name);
+  await startSession();
+});
+
 async function startSession() {
+  clearTimeout(helloTimer);
+  if (pc) return; // guard against double-start
   setStatus("Capturing screen…", "wait");
   const stream = await navigator.mediaDevices.getDisplayMedia({
     video: { frameRate: 30 } as MediaTrackConstraints,
@@ -124,6 +164,7 @@ function teardown(reason: string) {
   window.agent.setArmed(false);
   pc?.close();
   pc = null;
+  pendingDevice = null;
   const s = previewEl.srcObject as MediaStream | null;
   s?.getTracks().forEach((t) => t.stop());
   previewEl.srcObject = null;

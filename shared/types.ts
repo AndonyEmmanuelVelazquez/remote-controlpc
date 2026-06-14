@@ -11,6 +11,7 @@ export type SignalMessage =
   | { type: "offer"; sdp: string }
   | { type: "answer"; sdp: string }
   | { type: "ice"; candidate: RTCIceCandidateInit }
+  | { type: "hello"; deviceId: string; name?: string } // controller -> host identity, for "remember this device"
   | { type: "peer-joined"; role: Role }
   | { type: "peer-left"; role: Role }
   | { type: "full" } // room already has two peers in this role-pair

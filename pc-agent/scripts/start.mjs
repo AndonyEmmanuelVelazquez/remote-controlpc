@@ -1,0 +1,14 @@
+// Launch Electron reliably even if ELECTRON_RUN_AS_NODE is set in the user's
+// environment (which would otherwise make electron.exe run as plain Node and
+// never open the GUI). We strip that var for the child process only.
+import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const electronPath = require("electron"); // resolves to the electron.exe path
+
+const env = { ...process.env };
+delete env.ELECTRON_RUN_AS_NODE;
+
+const child = spawn(electronPath, ["."], { stdio: "inherit", env });
+child.on("close", (code) => process.exit(code ?? 0));

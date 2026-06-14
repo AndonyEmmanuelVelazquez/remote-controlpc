@@ -3,7 +3,17 @@
 Control your Windows PC (screen + mouse + keyboard) from an Android phone over the
 internet. Video and input flow **directly peer-to-peer** over WebRTC (DTLS-encrypted);
 the only server is a tiny Cloudflare Worker that relays the one-time connection
-handshake. **$0/month** for the common case. See [PLAN.md](PLAN.md) for the full design.
+handshake. **$0/month** for the common case.
+
+## Documentation
+
+- **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** — new here? Start-to-finish
+  install & run guide (clone → deploy → connect).
+- **[SECURITY.md](SECURITY.md)** — trust model. *Read before exposing a PC.* Answers
+  "can anyone access my PC without the code?"
+- **[PLAN.md](PLAN.md)** — full architecture & design decisions.
+- **[CHANGELOG.md](CHANGELOG.md)** — version history.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — repo layout, build/test per package.
 
 ```
 PC Agent (Electron) ──┐                                ┌── Android (web PWA)
@@ -94,8 +104,47 @@ The agent window shows a **6-digit pairing code**.
 
 1. On the phone, open the controller PWA, type the pairing code, tap **Connect**.
 2. On the PC, click **Allow** when prompted. Screen sharing + control begin.
-3. Touch = move/click, drag = drag, **Scroll** toggle = wheel, **Right-click** toggle =
-   next tap is a right click, **⌨ Keyboard** = type.
+
+### Touch controls (modeled on Chrome Remote Desktop / Microsoft Remote Desktop)
+
+| Gesture | Action |
+|---------|--------|
+| Tap | Left click |
+| Two-finger tap | Right click |
+| One-finger drag | Drag (press-and-move) |
+| Two-finger drag (at 1×) | Scroll wheel |
+| Pinch | Zoom the view 1×–4× (focal point under fingers) |
+| Two-finger drag (zoomed in) | Pan the view |
+| **Zoom** button | Cycle 100→200→300→100% · **Reset view** clears zoom |
+| **⌨ Keys** | Open keyboard / type |
+
+**Mode** toggle:
+- **Direct** (default) — tap where you want to click (absolute). Fast.
+- **Trackpad** — drag a virtual cursor (the blue ring) like a laptop trackpad; tap =
+  click, double-tap-then-hold-drag = drag. Pixel-precise, no fingertip occlusion — use
+  it for small targets. Combine with pinch-zoom for the tightest precision.
+
+### Remember this device (skip the Allow prompt)
+
+The phone has a persistent device ID (stored in its browser). On the PC, the approval
+prompt offers **Allow once** or **Always allow**:
+
+- **Always allow** records that device ID in `trusted.json` under the agent's userData
+  folder. Next time that phone connects, the agent **auto-approves** — no prompt.
+- The PC's pairing code is **persisted** (`code.json`), so the phone remembers it too
+  and you don't retype it. Net result after the first pairing: open the PWA → Connect →
+  you're in, hands-free.
+- This relies on the phone's device ID, which travels via signaling. A stranger who
+  guesses the code still can't drive the PC: an **unknown** device always triggers the
+  manual prompt, which only you can approve at the keyboard.
+- Reset trust: delete `trusted.json` in the agent's userData folder (or call the agent's
+  `forget-devices`).
+
+### Install on the phone (PWA)
+
+Open the controller URL in Android Chrome → tap **⬇ Install app** (or browser menu →
+"Install app" / "Add to Home screen"). It installs standalone (its own icon, fullscreen,
+no browser chrome). Icons + manifest are served from `android-web/public`.
 
 ---
 
@@ -110,10 +159,13 @@ The agent window shows a **6-digit pairing code**.
 ## Security
 
 - All P2P traffic is DTLS-SRTP encrypted end-to-end. The Worker only ever sees opaque SDP.
-- The PC agent injects input **only after you click Allow**, and only while a controller
-  is connected (`armed` gate in the main process).
-- The pairing code is the gate — treat it like a password while a session is pending.
+- The PC agent injects input **only after approval**, and only while a controller is
+  connected (`armed` gate in the main process).
+- An **unknown** device always triggers the manual Allow prompt; a guessed pairing code
+  alone cannot drive the PC. "Always allow" remembers a device (`trusted.json`).
 - This grants **full control of your PC**. Run the agent only when you intend to.
+
+**Full model, residual risks, and how to reset trust: [SECURITY.md](SECURITY.md).**
 
 ## Known limits
 
@@ -128,3 +180,7 @@ The agent window shows a **6-digit pairing code**.
 
 - `signaling/`: `node test-relay.mjs` (relay unit test) + `e2e/ npm test` (full handshake).
 - `pc-agent/` & `android-web/`: `npm run typecheck` then `npm run build`.
+
+## License
+
+[MIT](LICENSE) © Andony Velazquez.
