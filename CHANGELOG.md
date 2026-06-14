@@ -12,6 +12,8 @@ this project aims to follow [Semantic Versioning](https://semver.org/).
   `Start Remote Control.cmd` launcher.
 - Signaling URL is **baked at build time** from `SIGNALING_URL` (a runtime env var still
   overrides), so a packaged app works on double-click without configuration.
+- App icon: `npm run icon` generates `build/icon.ico` (zero-dep), used by both build paths.
+- pc-agent version bumped to 0.3.0; `author` set for installer metadata.
 - Docs: build/installer instructions in [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md),
   including the Windows Developer-Mode requirement for the NSIS build.
 

@@ -1,15 +1,17 @@
 {
   "name": "remote-control-pc-agent",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Electron host agent: shares screen over WebRTC and injects remote input.",
+  "author": "Andony Velazquez",
   "main": "dist/main.js",
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc --noEmit",
     "start": "npm run build && node scripts/start.mjs",
-    "pack": "npm run build && electron-packager . RemoteControlPCAgent --platform=win32 --arch=x64 --out=release --overwrite --ignore=^/release --ignore=^/src",
-    "dist": "npm run build && electron-builder --win"
+    "icon": "node scripts/gen-icon.mjs",
+    "pack": "npm run icon && npm run build && electron-packager . RemoteControlPCAgent --platform=win32 --arch=x64 --out=release --overwrite --icon=build/icon.ico --ignore=^/release --ignore=^/src",
+    "dist": "npm run icon && npm run build && electron-builder --win"
   },
   "dependencies": {
     "@nut-tree-fork/nut-js": "^4.2.0"
@@ -29,7 +31,8 @@
     "extraMetadata": { "main": "dist/main.js" },
     "directories": { "output": "release" },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
