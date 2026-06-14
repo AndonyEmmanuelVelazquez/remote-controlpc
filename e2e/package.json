@@ -1,0 +1,13 @@
+{
+  "name": "remote-control-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless end-to-end WebRTC handshake test through the local signaling Worker.",
+  "scripts": {
+    "test": "node handshake.test.mjs"
+  },
+  "devDependencies": {
+    "werift": "^0.20.0"
+  }
+}

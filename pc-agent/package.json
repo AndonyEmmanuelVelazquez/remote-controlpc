@@ -1,0 +1,31 @@
+{
+  "name": "remote-control-pc-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Electron host agent: shares screen over WebRTC and injects remote input.",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.5.0"
+  },
+  "build": {
+    "appId": "com.remotecontrol.pcagent",
+    "productName": "Remote Control PC Agent",
+    "files": ["dist/**/*", "package.json"],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

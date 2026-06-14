@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0e1116" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>PC Remote</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body { margin: 0; height: 100%; background: #0e1116; color: #e6edf3;
+        font-family: system-ui, sans-serif; overflow: hidden; overscroll-behavior: none; }
+
+      /* ---- connect screen ---- */
+      #connect { height: 100%; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 1rem; padding: 1.5rem; }
+      #connect h1 { font-size: 1.05rem; opacity: .7; font-weight: 600; letter-spacing: .04em; }
+      #code-input { font-size: 2rem; letter-spacing: .25em; text-align: center; width: 100%;
+        max-width: 320px; padding: .6rem; border-radius: 12px; border: 1px solid #30363d;
+        background: #161b22; color: #e6edf3; font-variant-numeric: tabular-nums; }
+      .btn { font: inherit; font-size: 1.05rem; padding: .7rem 1.6rem; border-radius: 12px;
+        border: 1px solid #2ea043; background: #238636; color: #fff; cursor: pointer; }
+      .btn:disabled { opacity: .5; }
+      #msg { min-height: 1.4em; opacity: .8; font-size: .9rem; text-align: center; }
+      details { max-width: 320px; width: 100%; opacity: .7; font-size: .85rem; }
+      #sig-url { width: 100%; padding: .4rem; margin-top: .4rem; border-radius: 8px;
+        border: 1px solid #30363d; background: #161b22; color: #e6edf3; }
+
+      /* ---- session screen ---- */
+      #session { position: fixed; inset: 0; display: none; background: #000; }
+      #session.show { display: block; }
+      #screen { width: 100%; height: 100%; object-fit: contain; touch-action: none;
+        display: block; background: #000; }
+      #bar { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: .4rem;
+        padding: .4rem; background: rgba(14,17,22,.6); backdrop-filter: blur(6px); }
+      #bar button { font: inherit; font-size: .85rem; padding: .35rem .7rem; border-radius: 8px;
+        border: 1px solid #30363d; background: #21262d; color: #e6edf3; }
+      #bar button.active { background: #1f6feb; border-color: #388bfd; }
+      #bar .spacer { flex: 1; }
+      #kbd { position: absolute; opacity: 0; pointer-events: none; height: 0; width: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="connect">
+      <h1>PC REMOTE</h1>
+      <input
+        id="code-input" inputmode="numeric" autocomplete="off"
+        placeholder="000000" maxlength="7"
+      />
+      <button class="btn" id="connect-btn">Connect</button>
+      <div id="msg"></div>
+      <details>
+        <summary>Signaling server</summary>
+        <input id="sig-url" placeholder="wss://...workers.dev" />
+      </details>
+    </div>
+
+    <div id="session">
+      <video id="screen" autoplay playsinline></video>
+      <div id="bar">
+        <button id="btn-kbd">⌨ Keyboard</button>
+        <button id="btn-right">Right-click: off</button>
+        <button id="btn-scroll">Scroll: off</button>
+        <span class="spacer"></span>
+        <button id="btn-disconnect">✕ Disconnect</button>
+      </div>
+      <input id="kbd" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

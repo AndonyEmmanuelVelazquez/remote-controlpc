@@ -1,0 +1,18 @@
+{
+  "name": "PC Remote",
+  "short_name": "PC Remote",
+  "description": "Control your PC from your phone over WebRTC.",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

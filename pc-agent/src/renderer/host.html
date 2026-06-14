@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Remote Control PC Agent</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; font-family: system-ui, sans-serif;
+        background: #0e1116; color: #e6edf3;
+        display: flex; min-height: 100vh; align-items: center; justify-content: center;
+      }
+      .card { text-align: center; padding: 2rem 2.5rem; }
+      h1 { font-size: 1.1rem; font-weight: 600; opacity: .7; margin: 0 0 1.5rem; }
+      .code {
+        font-size: 3.4rem; font-weight: 700; letter-spacing: .15em;
+        font-variant-numeric: tabular-nums; margin: .5rem 0 1rem;
+      }
+      .hint { opacity: .6; font-size: .9rem; }
+      .status { margin-top: 1.5rem; font-size: .95rem; opacity: .85; min-height: 1.4em; }
+      .dot { display: inline-block; width: .6em; height: .6em; border-radius: 50%;
+             background: #768390; margin-right: .5em; vertical-align: middle; }
+      .dot.live { background: #3fb950; }
+      .dot.wait { background: #d29922; }
+      .prompt { margin-top: 1.5rem; display: none; }
+      .prompt.show { display: block; }
+      button {
+        font: inherit; padding: .55rem 1.4rem; margin: 0 .35rem; border-radius: 8px;
+        border: 1px solid #30363d; cursor: pointer; color: #e6edf3; background: #21262d;
+      }
+      button.primary { background: #238636; border-color: #2ea043; }
+      button.danger { background: #3d1418; border-color: #f85149; }
+      video { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>REMOTE CONTROL — PC AGENT</h1>
+      <div class="code" id="code">······</div>
+      <div class="hint">Enter this code in the Android controller to connect</div>
+
+      <div class="prompt" id="prompt">
+        <div>A controller wants to connect. Allow remote control of this PC?</div>
+        <div style="margin-top:.8rem">
+          <button class="primary" id="allow">Allow</button>
+          <button class="danger" id="deny">Deny</button>
+        </div>
+      </div>
+
+      <div class="status"><span class="dot" id="dot"></span><span id="status">Starting…</span></div>
+    </div>
+    <video id="preview" autoplay muted></video>
+    <script src="./host.js"></script>
+  </body>
+</html>
