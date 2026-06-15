@@ -81,14 +81,14 @@ cd ../android-web
 npm install
 $env:VITE_SIGNALING_URL="wss://remote-control-signaling.<your-subdomain>.workers.dev"
 npm run build
-npx wrangler pages project create pc-remote --production-branch main   # first time only
-npx wrangler pages deploy dist --project-name pc-remote --branch main
+npx wrangler pages project create <your-project> --production-branch main   # first time only
+npx wrangler pages deploy dist --project-name <your-project> --branch main
 ```
 
 bash form of the env line:
 `VITE_SIGNALING_URL="wss://…workers.dev" npm run build`
 
-You get a URL like `https://pc-remote.pages.dev`. Open it on your phone.
+You get a URL like `https://<your-project>.pages.dev`. Open it on your phone.
 
 ### Option B — run locally (testing only)
 
@@ -219,6 +219,6 @@ cd e2e; npm install; npm test                   # expect 4x PASS
 git pull
 # rebuild whatever changed:
 cd signaling && npm run deploy
-cd ../android-web && npm run build && npx wrangler pages deploy dist --project-name pc-remote --branch main
+cd ../android-web && npm run build && npx wrangler pages deploy dist --project-name <your-project> --branch main
 cd ../pc-agent && npm start
 ```

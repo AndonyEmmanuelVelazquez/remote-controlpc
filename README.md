@@ -78,7 +78,7 @@ Its WebSocket URL is the same host with `wss://`.
 cd android-web
 # bake in the signaling URL (or paste it in the app's "Signaling server" box at runtime)
 VITE_SIGNALING_URL="wss://remote-control-signaling.<your-sub>.workers.dev" npm run build
-npx wrangler pages deploy dist --project-name pc-remote
+npx wrangler pages deploy dist --project-name <your-project>
 ```
 
 Open the resulting `*.pages.dev` URL in **Android Chrome** → tap **⬇ Install app** (or
