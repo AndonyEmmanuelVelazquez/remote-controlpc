@@ -6,42 +6,42 @@ this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-- **Per-user signaling**: the PC agent now has a **first-run setup screen** to enter your
-  own signaling URL (persisted to `config.json`; changeable via "⚙ Change signaling
-  server"). Resolution order: `SIGNALING_URL` env → saved config → baked default.
-  Distributable builds ship without a baked URL so each user points at their own
-  Cloudflare deployment, avoiding a shared pairing-code space. See
-  [SECURITY.md](SECURITY.md#multi-user).
-- **Packaging**: `npm run pack` (portable app via `@electron/packager`) and `npm run dist`
-  (NSIS installer via electron-builder). The portable folder ships a
-  `Start Remote Control.cmd` launcher.
-- Signaling URL is **baked at build time** from `SIGNALING_URL` (a runtime env var still
-  overrides), so a packaged app works on double-click without configuration.
-- App icon: `npm run icon` generates `build/icon.ico` (zero-dep), used by both build paths.
-- pc-agent version bumped to 0.3.0; `author` set for installer metadata.
-- Docs: build/installer instructions in [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md),
-  including the Windows Developer-Mode requirement for the NSIS build.
+- Nothing yet.
 
 ## [0.3.0] — 2026-06-14
 
+First tagged release with a Windows installer
+([download](https://github.com/AndonyEmmanuelVelazquez/remote-controlpc/releases/tag/v0.3.0)).
+
 ### Added
-- **Remember this device** — the controller now has a persistent device ID and sends a
-  `hello` over signaling. The PC agent's approval prompt gained **Always allow**, which
-  records the device in `trusted.json`; a trusted phone is auto-approved on later
-  connects (no prompt).
-- **Persistent pairing code** on the PC agent (`code.json`) so the phone remembers it and
-  you don't retype it.
-- **Installable PWA** — real 192/512 PNG icons (+ maskable), `display: standalone`, and an
-  in-app **Install** button (`beforeinstallprompt`). Zero-dependency icon generator at
+- **Per-user signaling**: the PC agent has a **first-run setup screen** to enter your own
+  signaling URL (persisted to `config.json`; changeable via "⚙ Change signaling server").
+  Resolution order: `SIGNALING_URL` env → saved config → baked default. Distributable
+  builds ship without a baked URL so each user points at their own Cloudflare deployment,
+  avoiding a shared pairing-code space. See [SECURITY.md](SECURITY.md#multi-user).
+- **Packaging**: `npm run pack` (portable app via `@electron/packager`) and `npm run dist`
+  (NSIS installer via electron-builder). The portable folder ships a
+  `Start Remote Control.cmd` launcher. Signaling URL can be **baked at build time** from
+  `SIGNALING_URL` (a runtime env/config still overrides).
+- **App icon**: `npm run icon` generates `build/icon.ico` (zero-dep); PWA 192/512 icons via
   `android-web/scripts/gen-icons.mjs`.
+- **Remember this device** — the controller has a persistent device ID and sends a `hello`
+  over signaling. The agent's approval prompt gained **Always allow**, which records the
+  device in `trusted.json`; a trusted phone is auto-approved on later connects (no prompt).
+- **Persistent pairing code** on the agent (`code.json`) so the phone remembers it.
+- **Installable PWA** — 192/512 PNG icons (+ maskable), `display: standalone`, in-app
+  **Install** button (`beforeinstallprompt`).
 - Reliable Electron launcher (`pc-agent/scripts/start.mjs`) that strips
   `ELECTRON_RUN_AS_NODE` so the GUI always launches.
+- Docs: [GETTING_STARTED](docs/GETTING_STARTED.md) (deploy + build/installer, incl. the
+  Windows Developer-Mode requirement for NSIS), [SECURITY](SECURITY.md), CONTRIBUTING,
+  LICENSE (MIT).
 
 ### Security
 - An **unknown** device always triggers the manual Allow prompt; a guessed pairing code
-  alone cannot drive the PC. See [SECURITY.md](SECURITY.md) for the full model and the
-  residual risk introduced by the persistent code.
+  alone cannot drive the PC.
+- Per-user signaling avoids a shared pairing-code space across users. Full model + residual
+  risks in [SECURITY.md](SECURITY.md).
 
 ## [0.2.0] — 2026-06-14
 
