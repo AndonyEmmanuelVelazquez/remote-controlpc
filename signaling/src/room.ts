@@ -23,12 +23,18 @@ export class Room extends DurableObject {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
-    // Reject a second peer in the same role slot (e.g. two hosts on one code).
-    if (this.state.getWebSockets(role).length > 0) {
-      server.accept();
-      server.send(JSON.stringify({ type: "full" }));
-      server.close(4001, "role slot taken");
-      return new Response(null, { status: 101, webSocket: client });
+    // Last connection in a role slot wins. After an unclean drop (phone sleep,
+    // Wi-Fi/cellular handoff) the old socket can linger here in hibernation and
+    // would otherwise lock the same peer out of reconnecting. Evict it instead.
+    // The eviction is marked so its close handler stays silent (no spurious
+    // "peer-left" to the surviving peer, who is about to be re-paired).
+    for (const stale of this.state.getWebSockets(role)) {
+      stale.serializeAttachment({ evicted: true });
+      try {
+        stale.close(4001, "replaced by a newer connection");
+      } catch {
+        /* already closing */
+      }
     }
 
     // Hibernatable accept: DO can sleep between messages, billed only when active.
@@ -57,6 +63,10 @@ export class Room extends DurableObject {
   webSocketClose(ws: WebSocket): void {
     const role = this.roleOf(ws);
     if (!role) return;
+    // A socket we deliberately evicted (replaced by a fresh one in the same
+    // role) must not tell the peer the role left — the slot is still occupied.
+    const att = ws.deserializeAttachment() as { evicted?: boolean } | null;
+    if (att?.evicted) return;
     const notice = JSON.stringify({ type: "peer-left", role });
     for (const p of this.state.getWebSockets(OTHER[role])) {
       p.send(notice);

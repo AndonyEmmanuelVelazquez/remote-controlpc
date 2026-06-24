@@ -1,6 +1,6 @@
 import { SignalingClient } from "../../shared/signaling";
-import { ICE_SERVERS, normalizeCode } from "../../shared/types";
-import type { InputEvent, KeyMods, MouseButton, SignalMessage } from "../../shared/types";
+import { buildIceServers, normalizeCode } from "../../shared/types";
+import type { InputEvent, KeyMods, MouseButton, SignalMessage, TurnConfig } from "../../shared/types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -8,6 +8,9 @@ const connectEl = $("connect");
 const sessionEl = $("session");
 const codeInput = $<HTMLInputElement>("code-input");
 const sigInput = $<HTMLInputElement>("sig-url");
+const turnUrl = $<HTMLInputElement>("turn-url");
+const turnUser = $<HTMLInputElement>("turn-user");
+const turnCred = $<HTMLInputElement>("turn-cred");
 const connectBtn = $<HTMLButtonElement>("connect-btn");
 const msgEl = $("msg");
 const video = $<HTMLVideoElement>("screen");
@@ -17,6 +20,17 @@ const DEFAULT_SIG =
   (import.meta as { env?: Record<string, string> }).env?.VITE_SIGNALING_URL ?? "";
 sigInput.value = localStorage.getItem("sigUrl") ?? DEFAULT_SIG;
 codeInput.value = localStorage.getItem("code") ?? "";
+turnUrl.value = localStorage.getItem("turnUrl") ?? "";
+turnUser.value = localStorage.getItem("turnUser") ?? "";
+turnCred.value = localStorage.getItem("turnCred") ?? "";
+
+function loadTurn(): TurnConfig {
+  return {
+    url: localStorage.getItem("turnUrl") ?? "",
+    username: localStorage.getItem("turnUser") ?? "",
+    credential: localStorage.getItem("turnCred") ?? "",
+  };
+}
 
 // Stable identity so a remembered PC can auto-approve this phone ("don't ask again").
 function getDeviceId(): string {
@@ -42,6 +56,7 @@ const DEVICE_NAME = getDeviceName();
 let signaling: SignalingClient | null = null;
 let pc: RTCPeerConnection | null = null;
 let channel: RTCDataChannel | null = null;
+let recoverTimer: number | undefined; // grace window for the host to re-establish ICE
 
 function setMsg(t: string) {
   msgEl.textContent = t;
@@ -57,11 +72,14 @@ connectBtn.addEventListener("click", () => {
   sig = sig.replace(/\/+$/, "").replace(/^http/, "ws"); // accept http(s)/ws(s)
   localStorage.setItem("sigUrl", sigInput.value.trim());
   localStorage.setItem("code", code);
+  localStorage.setItem("turnUrl", turnUrl.value.trim());
+  localStorage.setItem("turnUser", turnUser.value.trim());
+  localStorage.setItem("turnCred", turnCred.value.trim());
 
   connectBtn.disabled = true;
   setMsg("Connecting to signaling…");
 
-  pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  pc = new RTCPeerConnection({ iceServers: buildIceServers(loadTurn()) });
   pc.ontrack = (e) => {
     video.srcObject = e.streams[0];
     showSession();
@@ -73,22 +91,43 @@ connectBtn.addEventListener("click", () => {
     if (e.candidate) signaling?.send({ type: "ice", candidate: e.candidate.toJSON() });
   };
   pc.onconnectionstatechange = () => {
-    if (pc?.connectionState === "failed") disconnect("Connection failed");
-    if (pc?.connectionState === "disconnected") disconnect("Disconnected");
+    const st = pc?.connectionState;
+    if (st === "connected") {
+      clearTimeout(recoverTimer);
+      setMsg("");
+    } else if (st === "disconnected" || st === "failed") {
+      // The host (offerer) drives ICE restart; keep the session up and wait for
+      // its fresh offer. Drop only if recovery doesn't land within the window.
+      setMsg("Connection lost — recovering…");
+      clearTimeout(recoverTimer);
+      recoverTimer = window.setTimeout(() => {
+        if (pc?.connectionState !== "connected") disconnect("Disconnected");
+      }, 12_000);
+    }
   };
 
-  signaling = new SignalingClient(sig, code, "controller", {
-    onOpen: () => {
-      // Identify this device so a remembered PC can auto-approve.
-      signaling?.send({ type: "hello", deviceId: DEVICE_ID, name: DEVICE_NAME });
-      setMsg("Waiting for PC to accept…");
+  signaling = new SignalingClient(
+    sig,
+    code,
+    "controller",
+    {
+      onOpen: () => {
+        // Identify this device so a remembered PC can auto-approve. Re-sent on
+        // every (re)connect so the host knows the controller's signaling is back.
+        signaling?.send({ type: "hello", deviceId: DEVICE_ID, name: DEVICE_NAME });
+        setMsg(pc?.connectionState === "connected" ? "" : "Waiting for PC to accept…");
+      },
+      onReconnecting: () => {
+        if (pc?.connectionState !== "connected") setMsg("Signaling lost — reconnecting…");
+      },
+      onClose: () => {
+        if (!pc || pc.connectionState !== "connected") setMsg("Signaling closed");
+      },
+      onError: () => setMsg("Signaling error — check the server URL"),
+      onMessage: handleSignal,
     },
-    onClose: () => {
-      if (!pc || pc.connectionState !== "connected") setMsg("Signaling closed");
-    },
-    onError: () => setMsg("Signaling error — check the server URL"),
-    onMessage: handleSignal,
-  });
+    { autoReconnect: true },
+  );
   signaling.connect();
 });
 
@@ -130,6 +169,7 @@ function showSession() {
 }
 
 function disconnect(reason: string) {
+  clearTimeout(recoverTimer);
   channel = null;
   pc?.close();
   pc = null;

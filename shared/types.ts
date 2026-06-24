@@ -41,11 +41,35 @@ export interface KeyMods {
   meta?: boolean;
 }
 
-/** STUN-only ICE config for v1. TURN can be appended later for symmetric NAT. */
-export const ICE_SERVERS: RTCIceServer[] = [
+/** Optional user-supplied TURN relay. Needed when both peers are behind
+ *  symmetric NAT / CGNAT (common on cellular) and STUN can't punch a path. */
+export interface TurnConfig {
+  url?: string; // e.g. "turn:turn.example.com:3478" or "turns:...:5349"
+  username?: string;
+  credential?: string;
+}
+
+/** Public STUN servers, always present (free, no auth). */
+const STUN_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
 ];
+
+/** Build the ICE server list: STUN always, plus a TURN relay when configured. */
+export function buildIceServers(turn?: TurnConfig): RTCIceServer[] {
+  const servers = [...STUN_SERVERS];
+  if (turn?.url) {
+    servers.push({
+      urls: turn.url,
+      username: turn.username || undefined,
+      credential: turn.credential || undefined,
+    });
+  }
+  return servers;
+}
+
+/** Default STUN-only ICE config (no TURN). Kept for callers that don't configure TURN. */
+export const ICE_SERVERS: RTCIceServer[] = buildIceServers();
 
 /** A 6-digit pairing code formatted as "NNN-NNN". */
 export function generatePairingCode(): string {

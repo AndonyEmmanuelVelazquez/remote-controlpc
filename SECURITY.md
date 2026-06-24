@@ -33,6 +33,7 @@ itself, cannot drive your PC.** The approval gate is the real lock.
 | Party | Sees |
 |-------|------|
 | The signaling server (your Cloudflare Worker) | The pairing code, opaque SDP blobs, ICE candidates, the controller's device ID and name. **Never** your screen or input. |
+| A TURN relay (only if you configure one) | Relays the encrypted media when a direct path can't be found. It sees traffic **metadata** (IP/timing/volume) but the payload stays **DTLS-SRTP encrypted** — it cannot read your screen or input. Use a TURN server you trust. |
 | The peer-to-peer link (phone ↔ PC) | Screen video + input, **DTLS-SRTP encrypted end-to-end**. Not visible to the server or the network. |
 | Network observers | Encrypted traffic only. |
 
@@ -59,16 +60,24 @@ anyone on the network path can read them.
    - Add per-code rate limiting in the Durable Object.
    - Revert to a random per-launch code if you don't need "remember the code."
 
-2. **Trusted device ID is a bearer token.**
+2. **Last-connection-wins room slots.**
+   To let a phone reconnect after a drop, a new socket in a role ("host"/"controller")
+   now evicts any older socket in that same role. On your **own** server this is just
+   clean reconnection. On a **shared** server where two people collide on the same code,
+   a reconnecting stranger could knock your agent off *signaling* (not control — control
+   is still gated by the Allow prompt / trusted device ID). One more reason each person
+   should run their own signaling server (see [Multi-user](#multi-user)).
+
+3. **Trusted device ID is a bearer token.**
    It lives in the phone browser's `localStorage` and is sent over signaling (TLS to
    Cloudflare). Anyone who extracts it **and** knows the code could be auto-approved
    without a prompt. Treat the phone as trusted hardware; reset trust if the phone is
    lost (see below).
 
-3. **No second factor on approval.** Approval is a single click. There is no PIN on the
+4. **No second factor on approval.** Approval is a single click. There is no PIN on the
    PC side by default. Consider adding one if the machine is sensitive.
 
-4. **Elevated windows.** Injecting input into admin/UAC windows may require running the
+5. **Elevated windows.** Injecting input into admin/UAC windows may require running the
    agent elevated; conversely, an approved session can do anything your logged-in user
    can.
 

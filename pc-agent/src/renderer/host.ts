@@ -1,13 +1,19 @@
 import { SignalingClient } from "../../../shared/signaling";
-import { ICE_SERVERS } from "../../../shared/types";
-import type { InputEvent, SignalMessage } from "../../../shared/types";
+import { buildIceServers } from "../../../shared/types";
+import type { InputEvent, SignalMessage, TurnConfig } from "../../../shared/types";
 
 // preload-exposed bridge
 declare global {
   interface Window {
     agent: {
-      getConfig(): Promise<{ signalingUrl: string; code: string; configured: boolean }>;
+      getConfig(): Promise<{
+        signalingUrl: string;
+        code: string;
+        configured: boolean;
+        turn: TurnConfig;
+      }>;
       setSignalingUrl(url: string): Promise<boolean>;
+      setTurn(turn: TurnConfig): Promise<boolean>;
       isTrusted(deviceId: string): Promise<boolean>;
       trustDevice(deviceId: string, name: string): Promise<boolean>;
       forgetDevices(): Promise<boolean>;
@@ -27,6 +33,9 @@ const peerNameEl = $("peer-name");
 const previewEl = $("preview") as HTMLVideoElement;
 const setupEl = $("setup");
 const sigInputEl = $("sig-input") as HTMLInputElement;
+const turnUrlEl = $("turn-url") as HTMLInputElement;
+const turnUserEl = $("turn-user") as HTMLInputElement;
+const turnCredEl = $("turn-cred") as HTMLInputElement;
 
 function setStatus(text: string, state: "" | "wait" | "live" = "") {
   statusEl.textContent = text;
@@ -38,13 +47,17 @@ let pc: RTCPeerConnection | null = null;
 let signaling: SignalingClient;
 let pendingDevice: { id: string; name: string } | null = null;
 let helloTimer: number | undefined;
+let iceRestartInFlight = false; // guards against double-sending a restart offer
+let restartedSinceConnected = false; // a 2nd "failed" after a restart ends the session
 
 let currentUrl = "";
+let turnCfg: TurnConfig = {};
 
 async function main() {
   const cfg = await window.agent.getConfig();
   code = cfg.code;
   currentUrl = cfg.signalingUrl;
+  turnCfg = cfg.turn ?? {};
   codeEl.textContent = `${code.slice(0, 3)}-${code.slice(3)}`;
 
   if (cfg.configured) startSignaling(currentUrl);
@@ -54,12 +67,18 @@ async function main() {
 function startSignaling(url: string) {
   hideSetup();
   currentUrl = url;
-  signaling = new SignalingClient(url, code, "host", {
-    onOpen: () => setStatus("Waiting for controller…", "wait"),
-    onClose: () => setStatus("Signaling disconnected", ""),
-    onError: () => setStatus("Signaling error — check your server URL", ""),
-    onMessage: handleSignal,
-  });
+  signaling = new SignalingClient(
+    url,
+    code,
+    "host",
+    {
+      onOpen: () => setStatus(pc ? "Reconnecting controller…" : "Waiting for controller…", "wait"),
+      onReconnecting: () => setStatus("Signaling lost — reconnecting…", "wait"),
+      onError: () => setStatus("Signaling error — check your server URL", ""),
+      onMessage: handleSignal,
+    },
+    { autoReconnect: true },
+  );
   signaling.connect();
 }
 
@@ -68,6 +87,9 @@ function showSetup(prefill: string) {
   codeEl.style.display = "none";
   codeHintEl.style.display = "none";
   sigInputEl.value = prefill && prefill !== "ws://127.0.0.1:8787" ? prefill : "";
+  turnUrlEl.value = turnCfg.url ?? "";
+  turnUserEl.value = turnCfg.username ?? "";
+  turnCredEl.value = turnCfg.credential ?? "";
   setStatus("Configure your signaling server to begin", "");
   sigInputEl.focus();
 }
@@ -82,7 +104,12 @@ $("sig-save").addEventListener("click", async () => {
   if (!raw) return setStatus("Enter your signaling server URL", "");
   const url = raw.replace(/\/+$/, "").replace(/^http/, "ws"); // accept http(s)/ws(s)
   await window.agent.setSignalingUrl(url);
-  location.reload(); // re-init cleanly with the saved URL
+  await window.agent.setTurn({
+    url: turnUrlEl.value.trim(),
+    username: turnUserEl.value.trim(),
+    credential: turnCredEl.value.trim(),
+  });
+  location.reload(); // re-init cleanly with the saved config
 });
 
 $("settings-btn").addEventListener("click", () => {
@@ -95,6 +122,13 @@ function handleSignal(msg: SignalMessage) {
   switch (msg.type) {
     case "peer-joined":
       if (msg.role === "controller") {
+        // Controller's signaling came back mid-session (it dropped and the room
+        // re-paired us): renegotiate the existing link instead of re-prompting.
+        if (pc) {
+          setStatus("Reconnecting controller…", "wait");
+          void sendRestartOffer();
+          break;
+        }
         setStatus("Controller connecting…", "wait");
         // Wait briefly for the device's hello; if none, fall back to a manual prompt.
         clearTimeout(helloTimer);
@@ -123,6 +157,7 @@ function handleSignal(msg: SignalMessage) {
 }
 
 async function onHello(deviceId: string, name: string) {
+  if (pc) return; // session already active; a re-hello on reconnect needs no prompt
   pendingDevice = { id: deviceId, name };
   if (await window.agent.isTrusted(deviceId)) {
     setStatus(`Trusted device (${name}) — connecting…`, "wait");
@@ -167,7 +202,7 @@ async function startSession() {
   });
   previewEl.srcObject = stream;
 
-  pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  pc = new RTCPeerConnection({ iceServers: buildIceServers(turnCfg) });
   for (const track of stream.getTracks()) pc.addTrack(track, stream);
 
   // Host creates the input channel; controller writes to it, host reads.
@@ -192,8 +227,18 @@ async function startSession() {
     if (e.candidate) signaling.send({ type: "ice", candidate: e.candidate.toJSON() });
   };
   pc.onconnectionstatechange = () => {
-    if (pc?.connectionState === "failed") teardown("Connection failed");
-    if (pc?.connectionState === "disconnected") teardown("Controller disconnected");
+    const st = pc?.connectionState;
+    if (st === "connected") {
+      restartedSinceConnected = false;
+      window.agent.setArmed(true);
+      setStatus("Connected — remote control active", "live");
+    } else if (st === "disconnected") {
+      // Often self-heals; give ICE a moment before forcing a restart.
+      setStatus("Connection unstable — recovering…", "wait");
+    } else if (st === "failed") {
+      if (restartedSinceConnected) teardown("Connection failed"); // already retried, still down
+      else void sendRestartOffer();
+    }
   };
 
   const offer = await pc.createOffer();
@@ -202,11 +247,32 @@ async function startSession() {
   setStatus("Negotiating connection…", "wait");
 }
 
+// Re-negotiate ICE on the existing connection (offerer side). Used when the path
+// breaks or the controller's signaling reconnects mid-session. The data channel
+// and media tracks survive the restart, so an approved session stays approved.
+async function sendRestartOffer() {
+  if (!pc || iceRestartInFlight) return;
+  iceRestartInFlight = true;
+  try {
+    const offer = await pc.createOffer({ iceRestart: true });
+    await pc.setLocalDescription(offer);
+    signaling.send({ type: "offer", sdp: offer.sdp! });
+    restartedSinceConnected = true;
+    setStatus("Recovering connection…", "wait");
+  } catch {
+    teardown("Connection failed");
+  } finally {
+    iceRestartInFlight = false;
+  }
+}
+
 function teardown(reason: string) {
   window.agent.setArmed(false);
   pc?.close();
   pc = null;
   pendingDevice = null;
+  iceRestartInFlight = false;
+  restartedSinceConnected = false;
   const s = previewEl.srcObject as MediaStream | null;
   s?.getTracks().forEach((t) => t.stop());
   previewEl.srcObject = null;

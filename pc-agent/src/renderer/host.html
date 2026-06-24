@@ -29,6 +29,9 @@
       .setup.show { display: block; }
       .setup input { width: 360px; max-width: 80vw; padding: .55rem; border-radius: 8px;
         border: 1px solid #30363d; background: #161b22; color: #e6edf3; margin: .7rem 0; }
+      .setup .turn { width: 360px; max-width: 80vw; margin: .2rem auto .4rem; text-align: left; }
+      .setup .turn summary { cursor: pointer; opacity: .6; font-size: .82rem; }
+      .setup .turn input { margin: .4rem 0 0; }
       .linkbtn { background: none; border: none; color: #768390; cursor: pointer;
         font-size: .85rem; text-decoration: underline; margin-top: 1.2rem; }
       button {
@@ -49,6 +52,12 @@
       <div class="setup" id="setup">
         <div>Set your signaling server URL (your own Cloudflare Worker):</div>
         <input id="sig-input" placeholder="wss://your-worker.your-sub.workers.dev" spellcheck="false" />
+        <details class="turn">
+          <summary>TURN relay (optional — fixes drops on cellular / strict NAT)</summary>
+          <input id="turn-url" placeholder="turn:turn.example.com:3478" spellcheck="false" />
+          <input id="turn-user" placeholder="TURN username (optional)" spellcheck="false" />
+          <input id="turn-cred" type="password" placeholder="TURN password (optional)" spellcheck="false" />
+        </details>
         <div><button class="primary" id="sig-save">Save &amp; start</button></div>
         <div class="hint">Each user runs their own signaling server — see the project README.</div>
       </div>

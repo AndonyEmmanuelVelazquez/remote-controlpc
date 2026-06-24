@@ -27,7 +27,7 @@
       .btn:disabled { opacity: .5; }
       #msg { min-height: 1.4em; opacity: .8; font-size: .9rem; text-align: center; }
       details { max-width: 320px; width: 100%; opacity: .7; font-size: .85rem; }
-      #sig-url { width: 100%; padding: .4rem; margin-top: .4rem; border-radius: 8px;
+      details input { width: 100%; padding: .4rem; margin-top: .4rem; border-radius: 8px;
         border: 1px solid #30363d; background: #161b22; color: #e6edf3; }
 
       /* ---- session screen ---- */
@@ -60,6 +60,12 @@
       <details>
         <summary>Signaling server</summary>
         <input id="sig-url" placeholder="wss://...workers.dev" />
+      </details>
+      <details>
+        <summary>TURN relay (optional — fixes drops on cellular)</summary>
+        <input id="turn-url" placeholder="turn:turn.example.com:3478" />
+        <input id="turn-user" placeholder="TURN username (optional)" />
+        <input id="turn-cred" type="password" placeholder="TURN password (optional)" />
       </details>
     </div>
 

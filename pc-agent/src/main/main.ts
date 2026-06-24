@@ -8,7 +8,7 @@ import {
 import { join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dispatch, invalidateScreenSize } from "./input";
-import type { InputEvent } from "../../../shared/types";
+import type { InputEvent, TurnConfig } from "../../../shared/types";
 
 // Signaling endpoint resolution order (first non-empty wins):
 //   1. SIGNALING_URL env var (runtime override)
@@ -19,8 +19,9 @@ import type { InputEvent } from "../../../shared/types";
 declare const __SIGNALING_DEFAULT__: string;
 const DEV_DEFAULT = "ws://127.0.0.1:8787";
 
-function loadConfig(): { signalingUrl?: string } {
-  return loadJson<{ signalingUrl?: string }>("config.json", {});
+type AppConfig = { signalingUrl?: string; turn?: TurnConfig };
+function loadConfig(): AppConfig {
+  return loadJson<AppConfig>("config.json", {});
 }
 function resolveSignalingUrl(): string {
   return process.env.SIGNALING_URL || loadConfig().signalingUrl || __SIGNALING_DEFAULT__;
@@ -103,11 +104,20 @@ ipcMain.handle("get-config", () => ({
   signalingUrl: resolveSignalingUrl(),
   code: getOrCreateCode(),
   configured: isConfigured(),
+  turn: loadConfig().turn ?? {},
 }));
 
 ipcMain.handle("set-signaling-url", (_e, url: string) => {
   const cfg = loadConfig();
   cfg.signalingUrl = url;
+  saveJson("config.json", cfg);
+  return true;
+});
+
+ipcMain.handle("set-turn", (_e, turn: TurnConfig) => {
+  const cfg = loadConfig();
+  // Empty url => drop TURN entirely (fall back to STUN-only).
+  cfg.turn = turn?.url ? turn : undefined;
   saveJson("config.json", cfg);
   return true;
 });

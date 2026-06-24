@@ -1,12 +1,17 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { InputEvent } from "../../shared/types";
+import type { InputEvent, TurnConfig } from "../../shared/types";
 
 // Minimal, explicit surface exposed to the renderer. No Node access leaks through.
 contextBridge.exposeInMainWorld("agent", {
-  getConfig: (): Promise<{ signalingUrl: string; code: string; configured: boolean }> =>
-    ipcRenderer.invoke("get-config"),
+  getConfig: (): Promise<{
+    signalingUrl: string;
+    code: string;
+    configured: boolean;
+    turn: TurnConfig;
+  }> => ipcRenderer.invoke("get-config"),
   setSignalingUrl: (url: string): Promise<boolean> =>
     ipcRenderer.invoke("set-signaling-url", url),
+  setTurn: (turn: TurnConfig): Promise<boolean> => ipcRenderer.invoke("set-turn", turn),
   isTrusted: (deviceId: string): Promise<boolean> =>
     ipcRenderer.invoke("is-trusted", deviceId),
   trustDevice: (deviceId: string, name: string): Promise<boolean> =>

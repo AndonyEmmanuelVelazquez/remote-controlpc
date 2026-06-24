@@ -6,7 +6,24 @@ this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Nothing yet.
+### Added
+- **Optional TURN relay** — both the PC agent (first-run setup) and the phone controller
+  (Signaling-server panel) now take an optional TURN URL + username/password. When set, it
+  is appended to the STUN list so peers behind symmetric NAT / CGNAT (common on cellular)
+  can still connect. STUN-only remains the default.
+
+### Fixed
+- **Reconnect after a drop.** Three independent causes of "connected, then dropped, and
+  couldn't reconnect" are addressed:
+  - *Stale room slot*: the signaling room now evicts a lingering same-role socket (last
+    connection wins) instead of rejecting the reconnecting peer with `full`. The eviction
+    is silent — the surviving peer is not told its partner "left".
+  - *No signaling retry*: `SignalingClient` reconnects with exponential backoff on
+    unexpected drops (deliberate `close()` and room rejections do not retry).
+  - *No media recovery*: on a failed/disconnected peer connection the host performs an
+    **ICE restart** (data channel + screen survive, so an approved session stays approved);
+    the phone holds the session through a short recovery window instead of dropping
+    instantly.
 
 ## [0.3.0] — 2026-06-14
 
